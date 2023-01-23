@@ -1,0 +1,22 @@
+[package]
+name = "glaive"
+version = "0.1.0"
+authors = ["Kevin Caccamo"]
+license = "Apache-2.0"
+repository = "https://github.com/Talon1024/glaive"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "native"
+
+[dependencies]
+winit = "0.27.5"
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+wasm-bindgen = "0.2.83"
+web-sys = "0.3.60"
+console_log = "0.2.0"
+log = "0.4.17"
