@@ -7,8 +7,21 @@ use winit::{
     event_loop::EventLoop,
     window::WindowBuilder,
 };
+use glow::Context as GLContext;
 
-pub fn main() {
+cfg_if::cfg_if! {
+    if #[cfg(target_family = "wasm")] {
+        mod wasm;
+        pub use wasm::WindowContext;
+        use wasm_bindgen::JsCast;
+        use web_sys::{WebGlRenderingContext, WebGl2RenderingContext};
+    } else {
+        mod native;
+        pub use native::WindowContext;
+    }
+}
+
+pub fn start() {
     let event_loop = EventLoop::new();
 
     let window = WindowBuilder::new()
@@ -18,7 +31,20 @@ pub fn main() {
 
     #[cfg(target_family = "wasm")]
     {
-        let _canvas = wasm::insert_canvas(&window);
+        let canvas = wasm::insert_canvas(&window);
+        let _glc = canvas.get_context("webgl2").and_then(|ctx| {
+            ctx.unwrap()
+                .dyn_into::<WebGl2RenderingContext>()
+                .map(GLContext::from_webgl2_context)
+                .map_err(wasm_bindgen::JsValue::from)
+        }).or_else(|_| {
+            canvas.get_context("webgl").and_then(|ctx| {
+                ctx.unwrap()
+                    .dyn_into::<WebGlRenderingContext>()
+                    .map(GLContext::from_webgl1_context)
+                    .map_err(wasm_bindgen::JsValue::from)
+            })
+        });
     }
 
     event_loop.run(move |event, _, control_flow| {
@@ -35,31 +61,4 @@ pub fn main() {
             _ => (),
         }
     });
-}
-
-#[cfg(target_family = "wasm")]
-mod wasm {
-    use wasm_bindgen::prelude::*;
-    use winit::window::Window;
-
-    #[wasm_bindgen(start)]
-    pub fn run() {
-        console_log::init_with_level(log::Level::Debug).expect("error initializing logger");
-
-        #[allow(clippy::main_recursion)]
-        super::main();
-    }
-
-    pub fn insert_canvas(window: &Window) -> web_sys::HtmlCanvasElement {
-        use winit::platform::web::WindowExtWebSys;
-
-        let canvas = window.canvas();
-
-        let window = web_sys::window().unwrap();
-        let document = window.document().unwrap();
-        let body = document.body().unwrap();
-
-        body.append_child(&canvas).unwrap();
-        canvas
-    }
 }

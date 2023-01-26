@@ -1,3 +1,3 @@
 fn main() {
-	glaive::main();
+	glaive::start();
 }
