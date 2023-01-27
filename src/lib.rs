@@ -7,21 +7,23 @@ use winit::{
     event_loop::EventLoop,
     window::WindowBuilder,
 };
-use glow::Context as GLContext;
-
+use std::error::Error;
+use glow::{Context as GLContext, HasContext};
 cfg_if::cfg_if! {
     if #[cfg(target_family = "wasm")] {
         mod wasm;
-        pub use wasm::WindowContext;
-        use wasm_bindgen::JsCast;
-        use web_sys::{WebGlRenderingContext, WebGl2RenderingContext};
+        use wasm::make_gl_context;
     } else {
         mod native;
-        pub use native::WindowContext;
+        use native::make_gl_context;
     }
 }
 
-pub fn start() {
+pub trait HasGLContext {
+    fn glc(&self) -> &GLContext;
+}
+
+pub fn start() -> Result<(), Box<dyn Error>> {
     let event_loop = EventLoop::new();
 
     let window = WindowBuilder::new()
@@ -29,23 +31,7 @@ pub fn start() {
         .build(&event_loop)
         .unwrap();
 
-    #[cfg(target_family = "wasm")]
-    {
-        let canvas = wasm::insert_canvas(&window);
-        let _glc = canvas.get_context("webgl2").and_then(|ctx| {
-            ctx.unwrap()
-                .dyn_into::<WebGl2RenderingContext>()
-                .map(GLContext::from_webgl2_context)
-                .map_err(wasm_bindgen::JsValue::from)
-        }).or_else(|_| {
-            canvas.get_context("webgl").and_then(|ctx| {
-                ctx.unwrap()
-                    .dyn_into::<WebGlRenderingContext>()
-                    .map(GLContext::from_webgl1_context)
-                    .map_err(wasm_bindgen::JsValue::from)
-            })
-        });
-    }
+    let wnc = make_gl_context(&window, &event_loop)?;
 
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_wait();
@@ -56,7 +42,13 @@ pub fn start() {
                 window_id,
             } if window_id == window.id() => control_flow.set_exit(),
             Event::MainEventsCleared => {
-                window.request_redraw();
+                unsafe {
+                    wnc.glc().clear_color(0.25, 0.0, 0.0, 1.0);
+                    wnc.glc().clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
+                }
+                if let Err(_e) = wnc.swap_buffers() {
+                    // Log error
+                }
             }
             _ => (),
         }

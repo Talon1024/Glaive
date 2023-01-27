@@ -1,3 +1,3 @@
 fn main() {
-	glaive::start();
+	glaive::start().unwrap();
 }
