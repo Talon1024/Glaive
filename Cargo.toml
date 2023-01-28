@@ -2,6 +2,7 @@
 name = "glaive"
 version = "0.1.0"
 authors = ["Kevin Caccamo"]
+description = "A template project for developing desktop or otherwise graphical apps that run natively and in web browsers with WASM"
 license = "Apache-2.0"
 repository = "https://github.com/Talon1024/glaive"
 edition = "2021"

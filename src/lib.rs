@@ -3,19 +3,19 @@
 #![allow(clippy::single_match)]
 
 use winit::{
-    event::{Event, WindowEvent},
-    event_loop::EventLoop,
+    event_loop::{EventLoop, EventLoopBuilder},
     window::WindowBuilder,
 };
 use std::error::Error;
-use glow::{Context as GLContext, HasContext};
+use glow::Context as GLContext;
 cfg_if::cfg_if! {
     if #[cfg(target_family = "wasm")] {
         mod wasm;
-        use wasm::make_gl_context;
+        mod wasm_run;
+        use wasm::{make_gl_context, WindowContext};
     } else {
         mod native;
-        use native::make_gl_context;
+        use native::{make_gl_context, WindowContext};
     }
 }
 
@@ -23,34 +23,32 @@ pub trait HasGLContext {
     fn glc(&self) -> &GLContext;
 }
 
-pub fn start() -> Result<(), Box<dyn Error>> {
-    let event_loop = EventLoop::new();
+pub struct Window<CE: 'static> {
+    pub window: winit::window::Window,
+    pub window_context: WindowContext,
+    pub event_loop: EventLoop<CE>,
+}
 
-    let window = WindowBuilder::new()
-        .with_title("Glaive")
-        .build(&event_loop)
-        .unwrap();
+impl<CE> Window<CE> {
+    pub fn with_user_event() -> Result<Self, Box<dyn Error>> {
+        let event_loop = EventLoopBuilder::<CE>::with_user_event().build();
 
-    let wnc = make_gl_context(&window, &event_loop)?;
+        let window = WindowBuilder::new()
+            .with_title("Glaive")
+            .build(&event_loop)
+            .unwrap();
 
-    event_loop.run(move |event, _, control_flow| {
-        control_flow.set_wait();
+        let wnc = make_gl_context(&window, &event_loop)?;
+        Ok(Window {
+            window,
+            window_context: wnc,
+            event_loop
+        })
+    }
+}
 
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                window_id,
-            } if window_id == window.id() => control_flow.set_exit(),
-            Event::MainEventsCleared => {
-                unsafe {
-                    wnc.glc().clear_color(0.25, 0.0, 0.0, 1.0);
-                    wnc.glc().clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
-                }
-                if let Err(_e) = wnc.swap_buffers() {
-                    // Log error
-                }
-            }
-            _ => (),
-        }
-    });
+impl Window<()> {
+    pub fn new() -> Result<Self, Box<dyn Error>> {
+        Window::<()>::with_user_event()
+    }
 }

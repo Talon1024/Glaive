@@ -1,9 +1,9 @@
-use wasm_bindgen::{prelude::*, JsCast};
+use wasm_bindgen::JsCast;
 use winit::{
     window::Window,
     event_loop::EventLoopWindowTarget,
 };
-use std::{panic, error::Error, sync::Arc};
+use std::{error::Error, sync::Arc};
 use glow::Context as GLContext;
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext, WebGlRenderingContext};
 use js_sys::Object;
@@ -23,14 +23,6 @@ impl HasGLContext for WindowContext {
     fn glc(&self) -> &GLContext {
         &self.glc
     }
-}
-
-#[wasm_bindgen(start)]
-pub fn run() {
-    console_log::init_with_level(log::Level::Debug).expect("error initializing logger");
-    panic::set_hook(Box::new(console_error_panic_hook::hook));
-
-    super::start().unwrap();
 }
 
 fn insert_canvas(window: &Window) -> HtmlCanvasElement {

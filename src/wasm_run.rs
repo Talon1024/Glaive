@@ -1,10 +1,15 @@
-use std::error::Error;
+use wasm_bindgen::prelude::*;
+use crate::HasGLContext;
 use winit::event::{Event, WindowEvent};
-use glaive::{Window, HasGLContext};
 use glow::HasContext;
+use std::panic;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let Window {window, window_context: wnc, event_loop} = Window::new()?;
+#[wasm_bindgen(start)]
+pub fn run() {
+    console_log::init_with_level(log::Level::Debug).expect("error initializing logger");
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
+
+    let crate::Window {window, window_context: wnc, event_loop} = crate::Window::new().unwrap();
     event_loop.run(move |event, _, control_flow| {
         control_flow.set_wait();
 
