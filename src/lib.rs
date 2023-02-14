@@ -6,27 +6,26 @@ use winit::{
     event_loop::{EventLoop, EventLoopBuilder},
     window::WindowBuilder,
 };
-use std::error::Error;
+use std::{error::Error, sync::Arc};
 use glow::Context as GLContext;
-cfg_if::cfg_if! {
-    if #[cfg(target_family = "wasm")] {
-        mod wasm;
-        mod wasm_run;
-        use wasm::{make_gl_context, WindowContext};
-    } else {
-        mod native;
-        use native::{make_gl_context, WindowContext};
-    }
-}
+
+pub mod platform;
 
 pub trait HasGLContext {
-    fn glc(&self) -> &GLContext;
+    fn glc(&self) -> &Arc<GLContext>;
 }
 
 pub struct Window<CE: 'static> {
     pub window: winit::window::Window,
-    pub window_context: WindowContext,
+    pub window_context: platform::WindowContext,
+    gl_context: Arc<GLContext>,
     pub event_loop: EventLoop<CE>,
+}
+
+impl<CE> HasGLContext for Window<CE> {
+    fn glc(&self) -> &Arc<GLContext> {
+        &self.gl_context
+    }
 }
 
 impl<CE> Window<CE> {
@@ -38,10 +37,11 @@ impl<CE> Window<CE> {
             .build(&event_loop)
             .unwrap();
 
-        let wnc = make_gl_context(&window, &event_loop)?;
+        let (wnc, glc) = platform::show_window(&window, &event_loop, platform::DrawingContextRequest::OpenGL);
         Ok(Window {
             window,
             window_context: wnc,
+            gl_context: glc,
             event_loop
         })
     }
